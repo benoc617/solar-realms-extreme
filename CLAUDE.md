@@ -267,7 +267,8 @@ Chess (`games/chess/`) and Gin Rummy (`games/ginrummy/`) are reference implement
 8. Create `src/components/{Name}GameScreen.tsx` for the in-game UI; register it in `GAME_SCREEN_REGISTRY` and `CLIENT_GAME_REGISTRY` in `src/app/page.tsx`
 9. Add path aliases to `tsconfig.json` for `@dge/{name}` and `@dge/{name}/*`
 10. Add `COPY games/{name}/package.json` to `Dockerfile.dev` before the `npm ci` step
-11. Add unit tests in `tests/unit/{name}-*.test.ts` and E2E tests in `tests/e2e/{name}/` subdir
+11. Run `npm install --package-lock-only` so the new workspace is in `package-lock.json` — the Docker build runs `npm ci`, which fails on a lockfile that does not know the workspace
+12. Add unit tests in `tests/unit/{name}-*.test.ts` and E2E tests in `tests/e2e/{name}/` subdir
 
 ### Tests for engine and game code
 
@@ -281,7 +282,7 @@ Chess (`games/chess/`) and Gin Rummy (`games/ginrummy/`) are reference implement
 - **`tests/unit/turn-order-lobby.test.ts`** — `sessionCannotHaveActiveTurn` (sequential)
 - **`tests/unit/chess-rules.test.ts`** / **`chess-mcts.test.ts`** — chess rules + MCTS search
 - **`tests/unit/ginrummy-melds.test.ts`** / **`ginrummy-rules.test.ts`** / **`ginrummy-mcts.test.ts`** — Gin Rummy logic
-- **`tests/unit/burgerdash-rules.test.ts`** / **`burgerdash-definition.test.ts`** — Burger Dash board/movement rules, the two-step crayon turn, and `projectState` hidden-hand secrecy
+- **`tests/unit/burgerdash-rules.test.ts`** / **`burgerdash-definition.test.ts`** — Burger Dash board/movement rules, the two-step crayon turn, turn-timeout resolution (`skipStalledTurn`), and `projectState` hidden-hand secrecy
 
 E2E tests (need MySQL + app running):
 
@@ -321,7 +322,7 @@ For door-game (simultaneous) turn mechanics, turn order enforcement, and AI turn
 - **`src/components/SrxGameScreen.tsx`** — full SRX in-game UI (header, panels, polling, modals).
 - **`src/components/ChessGameScreen.tsx`** — full chess in-game UI (interactive board, move selection, promotion, resign, captured pieces, AI polling).
 - **`src/components/GinRummyGameScreen.tsx`** — full Gin Rummy in-game UI (card table, hand rendering, draw/discard/knock/gin/layoff actions, match scoring, hand sort/drag, help modal).
-- **`src/components/BurgerDashGameScreen.tsx`** — full Burger Dash in-game UI (scaled SVG board on a fixed 1600x772 design canvas, hand hide/guess buttons, reveal, crayon trail, help modal).
+- **`src/components/BurgerDashGameScreen.tsx`** — full Burger Dash in-game UI (scaled SVG board on a fixed 1754x772 design canvas, hand hide/guess buttons, reveal, crayon trail, help modal).
 - **Screens flow**: Login → Game Select → Command Center/Hub → Create Session or Join → `GameScreen`. Legacy login (no `UserAccount`) goes straight into the game.
 - All API responses use `game` field (not `gameType`). DB column is `GameSession.gameType`; routes map it at the boundary.
 - Styling: monochrome terminal/BBS aesthetic (black background, green-400 text, yellow-400 accents).

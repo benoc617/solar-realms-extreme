@@ -588,12 +588,12 @@ Each `GameScreen` fully owns its in-game UI — panels, polling, actions, modals
 | AI runtime settings | Unit | `tests/unit/door-ai-runtime-settings.test.ts` |
 | AI difficulty profiles | Unit | `tests/unit/ai-difficulty.test.ts` |
 | RNG | Unit | `tests/unit/rng.test.ts` |
-| Help API | E2E | `tests/e2e/api-routes.test.ts` |
+| Help API | E2E | `tests/e2e/srx/api-routes.test.ts` |
 | Admin CRUD | E2E | `tests/e2e/admin.test.ts` |
 | Auth / signup | E2E | `tests/e2e/auth-account.test.ts` |
-| Full game flow | E2E | `tests/e2e/game-flow.test.ts` |
-| Door-game mode | E2E | `tests/e2e/door-game.test.ts` |
-| Multiplayer | E2E | `tests/e2e/multiplayer.test.ts` |
+| Full game flow | E2E | `tests/e2e/srx/game-flow.test.ts` |
+| Door-game mode | E2E | `tests/e2e/srx/door-game.test.ts` |
+| Multiplayer | E2E | `tests/e2e/srx/multiplayer.test.ts` |
 
 SRX-specific tests:
 
@@ -606,10 +606,10 @@ SRX-specific tests:
 | Espionage | Unit | `tests/unit/espionage.test.ts` |
 | Empire Prisma mapping | Unit | `tests/unit/empire-prisma.test.ts` |
 | Critical events | Unit | `tests/unit/critical-events.test.ts` |
-| Simulation / balance | Unit | `tests/unit/simulation.test.ts` |
-| Combat reporting | E2E | `tests/e2e/combat-reporting.test.ts` |
-| Defender alerts | E2E | `tests/e2e/defender-alerts.test.ts` |
-| Protection enforcement | E2E | `tests/e2e/protection.test.ts` |
+| Simulation / balance | Unit | `tests/unit/simulation-harness.test.ts`, `tests/unit/simulation-strategies.test.ts`, `tests/unit/sim-state.test.ts` |
+| Combat reporting | E2E | `tests/e2e/srx/combat-reporting.test.ts` |
+| Defender alerts | E2E | `tests/e2e/srx/defender-alerts.test.ts` |
+| Protection enforcement | E2E | `tests/e2e/srx/protection.test.ts` |
 | Lobby flow | E2E | `tests/e2e/lobby.test.ts` |
 
 Chess-specific tests:
@@ -618,7 +618,7 @@ Chess-specific tests:
 |------|-----------|---------|
 | Chess rules (move gen, check, mate, castling, en passant, promotion, draw) | Unit | `tests/unit/chess-rules.test.ts` |
 | Chess MCTS search functions | Unit | `tests/unit/chess-mcts.test.ts` |
-| Chess full game flow (register, status, moves, play, AI, resign, game-over) | E2E | `tests/e2e/chess.test.ts` |
+| Chess full game flow (register, status, moves, play, AI, resign, game-over) | E2E | `tests/e2e/chess/chess.test.ts` |
 
 Gin Rummy-specific tests:
 
@@ -627,14 +627,14 @@ Gin Rummy-specific tests:
 | Meld detection, deadwood, layoff options | Unit | `tests/unit/ginrummy-melds.test.ts` |
 | Game lifecycle: deal, draw, knock, gin, undercut, scoring, resign | Unit | `tests/unit/ginrummy-rules.test.ts` |
 | MCTS search functions, eval, determinization, AI moves | Unit | `tests/unit/ginrummy-mcts.test.ts` |
-| Full game flow (register, status, draw, discard, AI, resign, human vs human) | E2E | `tests/e2e/ginrummy.test.ts` |
+| Full game flow (register, status, draw, discard, AI, resign, human vs human) | E2E | `tests/e2e/ginrummy/ginrummy.test.ts` |
 
 Burger Dash-specific tests:
 
 | Area | Test type | File(s) |
 |------|-----------|---------|
-| Board data, movement, jumps, lose-a-turn, overshoot win, the two-step crayon turn | Unit | `tests/unit/burgerdash-rules.test.ts` |
-| `projectState` hidden-hand secrecy, action dispatch, turn enforcement, AI | Unit | `tests/unit/burgerdash-definition.test.ts` |
+| Board data + adjacency, movement, jumps, lose-a-turn, overshoot win, the two-step crayon turn, turn-timeout resolution | Unit | `tests/unit/burgerdash-rules.test.ts` |
+| `projectState` hidden-hand secrecy, action dispatch, turn/identity enforcement, AI | Unit | `tests/unit/burgerdash-definition.test.ts` |
 | Full game flow, AI hiding before the human's first move, hidden-hand non-leakage over HTTP | E2E | `tests/e2e/burgerdash/burgerdash.test.ts` |
 
 ---

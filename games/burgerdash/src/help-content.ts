@@ -39,9 +39,13 @@ Every space you land on or pass through gets a circle in your crayon colour.
 ## Waiting on Another Player
 
 Because a turn needs the hider to act before the guesser, play can pause on
-someone else. If the hider does not choose within the turn timer, the server
-picks a hand at random and play continues — a game never stalls on one player.
-The reveal says when this happened.
+someone else. Nobody can stall a game by walking away — if the player being
+waited on runs out of time, the server settles their turn and play continues:
+
+- **A hider who does not choose** has a hand picked at random. They are not
+  penalised — they are not the one racing. The reveal says when this happened.
+- **A guesser who does not guess** forfeits that guess: they do not move, and
+  play passes to the next player.
 
 ## AI Players
 

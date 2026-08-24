@@ -131,7 +131,10 @@ src/
 4. Implement `GameMetadata` (lobby card + create-form options) and `GameHttpAdapter` (API payload hooks)
 5. Create `src/lib/{name}-registration.ts` calling `registerGame("{name}", { definition, metadata, adapter, hooks })` and add it to `src/lib/game-bootstrap.ts`
 6. Create `src/components/{Name}GameScreen.tsx` for the in-game UI; register it in `GAME_SCREEN_REGISTRY` and `CLIENT_GAME_REGISTRY` in `src/app/page.tsx`
-7. Add unit tests in `tests/unit/{name}-*.test.ts` and E2E tests in `tests/e2e/{name}-*.test.ts`
+7. Add path aliases to `tsconfig.json` for `@dge/{name}` and `@dge/{name}/*`
+8. Add `COPY games/{name}/package.json` to `Dockerfile.dev` before the `npm ci` step
+9. Run `npm install --package-lock-only` so the workspace lands in `package-lock.json` — the Docker build runs `npm ci`, which fails otherwise
+10. Add unit tests in `tests/unit/{name}-*.test.ts` and E2E tests in `tests/e2e/{name}/`
 
 ## Tech Stack
 

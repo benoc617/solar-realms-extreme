@@ -3,8 +3,9 @@
 /**
  * Burger Dash in-game UI.
  *
- * The board is drawn on the original's fixed 1600x772 design canvas and scaled
- * to fit, so the whole board is always visible with no scrolling.
+ * The board is drawn on a fixed 1754x772 design canvas (the original's 1600x772
+ * plus the 11th column added to align the snake) and scaled to fit, so the whole
+ * board is always visible with no scrolling.
  *
  * The screen is driven entirely by `phase` + `waitingOn` from the status
  * payload. Because a Burger Dash turn blocks on two different players, "is it
