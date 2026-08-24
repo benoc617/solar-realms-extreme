@@ -23,7 +23,9 @@ import {
   DESIGN_W,
   PANEL_RECT,
   ROSTER_RECT,
+  TEXT_INSET,
   TITLE_RECT,
+  TITLE_SAFE_W,
   tileCenter,
   tileRect,
 } from "@dge/burgerdash/layout";
@@ -79,6 +81,11 @@ export interface BurgerDashGameScreenProps {
 }
 
 const POLL_MS = 2000;
+
+/** SVG text does not wrap or ellipsize — cap long names before drawing them. */
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
 
 export function BurgerDashGameScreen({
   playerName,
@@ -248,6 +255,21 @@ export function BurgerDashGameScreen({
             width={DESIGN_W * scale}
             height={DESIGN_H * scale}
           >
+            <defs>
+              {/* The text blocks live in the tile-free lower-left corner.
+                  Clipping to their rects means no name or message can ever
+                  overlap the playing squares, however long it is. */}
+              <clipPath id="bd-title-clip">
+                <rect x={TITLE_RECT.x} y={TITLE_RECT.y} width={TITLE_RECT.w} height={TITLE_RECT.h} />
+              </clipPath>
+              <clipPath id="bd-roster-clip">
+                <rect x={ROSTER_RECT.x} y={ROSTER_RECT.y} width={ROSTER_RECT.w} height={ROSTER_RECT.h} />
+              </clipPath>
+              <clipPath id="bd-panel-clip">
+                <rect x={PANEL_RECT.x} y={PANEL_RECT.y} width={PANEL_RECT.w} height={PANEL_RECT.h} />
+              </clipPath>
+            </defs>
+
             <rect x={0} y={0} width={DESIGN_W} height={DESIGN_H} fill="#fdf6e6" rx={18} />
 
             {status.board.map((space) => (
@@ -283,42 +305,64 @@ export function BurgerDashGameScreen({
               );
             })}
 
-            {/* Title block in the free lower-left corner */}
-            <g transform={`translate(${TITLE_RECT.x + 12} ${TITLE_RECT.y + 60})`}>
-              <text fontSize={52} fontWeight="bold" fill="#d0483c">
-                Burger Dash
-              </text>
-              <text y={42} fontSize={22} fill="#7a6a55">
-                Hide the crayon. Guess the hand. Race to the burger.
-              </text>
+            {/* Title block in the free lower-left corner.
+                Clipped so it can never run underneath the tiles. */}
+            <g clipPath="url(#bd-title-clip)">
+              <g transform={`translate(${TITLE_RECT.x + TEXT_INSET} ${TITLE_RECT.y + 60})`}>
+                <text fontSize={52} fontWeight="bold" fill="#d0483c">
+                  Burger Dash
+                </text>
+                <text
+                  y={40}
+                  fontSize={20}
+                  fill="#7a6a55"
+                  textLength={TITLE_SAFE_W}
+                  lengthAdjust="spacingAndGlyphs"
+                >
+                  Hide the crayon. Guess the hand.
+                </text>
+                <text y={66} fontSize={20} fill="#7a6a55">
+                  Race to the burger.
+                </text>
+              </g>
             </g>
 
-            {/* Roster */}
-            <g transform={`translate(${ROSTER_RECT.x + 12} ${ROSTER_RECT.y + 28})`}>
-              {status.players.map((p, i) => {
-                const c = CRAYON_COLORS[p.color];
-                const isActor = status.waitingOn?.id === p.id;
-                return (
-                  <g key={p.id} transform={`translate(0 ${i * 34})`}>
-                    <circle cx={12} cy={-6} r={11} fill={c.ink} />
-                    <text x={32} fontSize={22} fill={isActor ? "#d0483c" : "#3b3b3b"} fontWeight={isActor ? "bold" : "normal"}>
-                      {p.name}
-                      {p.isAI ? " (AI)" : ""} — {p.position}
-                    </text>
-                  </g>
-                );
-              })}
+            {/* Roster — clipped, with long names truncated so a player
+                called something enormous cannot cover the board. */}
+            <g clipPath="url(#bd-roster-clip)">
+              <g transform={`translate(${ROSTER_RECT.x + TEXT_INSET} ${ROSTER_RECT.y + 28})`}>
+                {status.players.map((p, i) => {
+                  const c = CRAYON_COLORS[p.color];
+                  const isActor = status.waitingOn?.id === p.id;
+                  return (
+                    <g key={p.id} transform={`translate(0 ${i * 34})`}>
+                      <circle cx={12} cy={-6} r={11} fill={c.ink} />
+                      <text
+                        x={32}
+                        fontSize={20}
+                        fill={isActor ? "#d0483c" : "#3b3b3b"}
+                        fontWeight={isActor ? "bold" : "normal"}
+                      >
+                        {truncate(p.name, 14)}
+                        {p.isAI ? " (AI)" : ""} — {p.position}
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
             </g>
 
             {/* Interaction panel */}
-            <g transform={`translate(${PANEL_RECT.x + 12} ${PANEL_RECT.y + 20})`}>
-              <text fontSize={24} fill="#7a6a55">
+            <g clipPath="url(#bd-panel-clip)">
+              <g transform={`translate(${PANEL_RECT.x + TEXT_INSET} ${PANEL_RECT.y + 20})`}>
+                <text fontSize={22} fill="#7a6a55">
                 {over
                   ? status.winner
                     ? `${status.players.find((p) => p.id === status.winner)?.name ?? "Someone"} wins!`
                     : "Game over."
-                  : `Waiting on ${status.waitingOn?.name ?? "…"}`}
-              </text>
+                    : `Waiting on ${truncate(status.waitingOn?.name ?? "…", 18)}`}
+                </text>
+              </g>
             </g>
           </svg>
         </div>

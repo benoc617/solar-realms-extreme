@@ -22,9 +22,12 @@ movement rules transferred unchanged. What had to change is the turn model.
 | `moving` phase + `STEP` action per space | Landing resolved in one step | The UI animates from before/after positions. Every space walked through is still recorded in `landedBy`, so the crayon trail is identical. |
 | Hidden hand held in client memory | Hidden hand held server-side, stripped by `projectState` | In pass-and-play a hider could peek at their own screen. Here the value never reaches any client until the reveal. |
 | CPU seats | AI players (`isAI`) | Uses the engine's AI player rows and `runAiSequence`. |
+| 10-column grid; 17 → 18 steps diagonally | 11-column grid; every row transition drops straight down | A 7-space row and an 8-space row cannot share both edges, so the original's snake jogged sideways at 17 → 18. Widening the grid by one column aligns all three transitions. |
 
-Board layout, movement amounts, jump/move targets, lose-a-turn behaviour and
-the overshoot win are **unchanged** from the original.
+Space order, movement amounts, jump/move targets, lose-a-turn behaviour and the
+overshoot win are **unchanged** from the original. The only board change is the
+column alignment noted in the last row above — no space was added, removed or
+re-kinded.
 
 ---
 
@@ -91,17 +94,23 @@ A timed-out player in any other phase is skipped normally.
 
 ## 3. Board
 
-31 spaces in a four-row snake, on a 10 x 4 design grid. Rows 1-3 start further
+31 spaces in a four-row snake, on an 11 x 4 design grid. Rows 1-3 start further
 in, leaving the lower-left corner free for the title, roster and panel.
 
-| Row | Direction | Spaces |
-|-----|-----------|--------|
-| 1 | left → right | 1 Start · 2 · 3 · 4 · 5 **Lose a Turn** · 6 · 7 · 8 **Jump to 13** · 9 · 10 |
-| 2 | right → left | 11 **Move to 12** · 12 · 13 · 14 · 15 **Jump to 20** · 16 · 17 |
-| 3 | left → right | 18 **Move to 19** · 19 · 20 · 21 · 22 **Lose a Turn** · 23 **Jump to 26** · 24 · 25 |
-| 4 | right → left | 26 · 27 · 28 · 29 **Lose a Turn** · 30 · 31 **Winner!** |
+| Row | Direction | Spaces | Cols |
+|-----|-----------|--------|------|
+| 1 | left → right | 1 Start · 2 · 3 · 4 · 5 **Lose a Turn** · 6 · 7 · 8 **Jump to 13** · 9 · 10 | 0–9 |
+| 2 | right → left | 11 **Move to 12** · 12 · 13 · 14 · 15 **Jump to 20** · 16 · 17 | 9–3 |
+| 3 | left → right | 18 **Move to 19** · 19 · 20 · 21 · 22 **Lose a Turn** · 23 **Jump to 26** · 24 · 25 | 3–10 |
+| 4 | right → left | 26 · 27 · 28 · 29 **Lose a Turn** · 30 · 31 **Winner!** | 10–5 |
 
-- `FINAL_SPACE = 31`, `GRID_COLS = 10`, `GRID_ROWS = 4`.
+The grid is **11 columns** wide so that every row transition is a straight
+vertical drop — 10 → 11 at col 9, 17 → 18 at col 3, and 25 → 26 at col 10.
+(The original repo's 10-column grid left 17 → 18 as a diagonal step, because a
+7-space row and an 8-space row cannot share both edges.) A unit test asserts
+that consecutive spaces are always orthogonally adjacent.
+
+- `FINAL_SPACE = 31`, `GRID_COLS = 11`, `GRID_ROWS = 4`.
 - Space kinds: `start`, `plain`, `loseTurn`, `jump`, `move`, `winner`.
 
 ### Movement rules
@@ -223,7 +232,7 @@ recognise into `gameOptions`.
 | `games/burgerdash/src/board.ts` | The 31 spaces (copied unchanged from the original) |
 | `games/burgerdash/src/rules.ts` | Pure rules engine + `actorForPhase` / `getLegalActions` |
 | `games/burgerdash/src/definition.ts` | `GameDefinition`, `projectState`, AI, persistence |
-| `games/burgerdash/src/layout.ts` | 1600x772 design canvas geometry + crayon colours |
+| `games/burgerdash/src/layout.ts` | 1754x772 design canvas geometry, text-safe rects + crayon colours |
 | `games/burgerdash/src/art/characters.tsx` | Original hand-written SVG art |
 | `games/burgerdash/src/help-content.ts` | In-game help |
 | `src/lib/burgerdash-http-adapter.ts` | `GameHttpAdapter` — status payload, session setup |

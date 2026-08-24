@@ -72,6 +72,21 @@ describe("board data", () => {
     expect(slots.size).toBe(BOARD.length);
   });
 
+  it("drops straight down at every row transition", () => {
+    // Where the snake changes row, consecutive spaces must share a column —
+    // otherwise the path visibly jogs sideways (17 -> 18 did before).
+    for (let id = 1; id < FINAL_SPACE; id += 1) {
+      const a = getSpace(id);
+      const b = getSpace(id + 1);
+      if (a.row === b.row) {
+        expect(Math.abs(a.col - b.col)).toBe(1); // same row: step one column
+      } else {
+        expect(b.row).toBe(a.row + 1); // next row down...
+        expect(b.col).toBe(a.col);     // ...directly below
+      }
+    }
+  });
+
   it("points every jump / move space at a real space further along", () => {
     for (const space of BOARD) {
       if (space.kind === "jump" || space.kind === "move") {
