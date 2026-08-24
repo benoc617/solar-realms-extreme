@@ -667,7 +667,17 @@ Two consequences are worth knowing if you build another game this way:
   it *after* a human action, and stale-turn recovery waits
   `SEQUENTIAL_AI_STALE_MS` (90s). If a game can open with an AI due to act
   before any human has moved, the adapter must kick it off in
-  `onSessionCreated` / `onPlayerJoined`.
+  `onSessionCreated` / `onPlayerJoined` — and then guard against overlapping
+  runs, since the kickoff and the orchestrator's fire-and-forget can be in
+  flight at the same time over the same unlocked load-modify-save loop.
+- **`processEndTurn` must advance the game itself.** `getCurrentTurn`'s
+  auto-skip calls the hook and then does
+  `nextPlayer(players, current.id)` on the list `getActivePlayers` returned. If
+  that list holds a single player, `(0 + 1) % 1 === 0` resolves to the *same*
+  player, so the engine cannot advance on its own: it rewrites `turnStartedAt`
+  to now and loops. A hook that leaves game state unchanged therefore resets the
+  timed-out player's clock indefinitely instead of skipping them. Every stalled
+  phase needs an explicit resolution that changes who the actor is.
 
 Also note: **action params are spread into the same object as the acting
 player's id** by `POST /api/game/action`. Never name an action param

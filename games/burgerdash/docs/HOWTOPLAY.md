@@ -70,6 +70,9 @@ If a hider does not choose within the turn timer, **the server picks a hand at
 random** and play carries on — a game never stalls because one person stepped
 away. When that happens, the reveal says so.
 
+If the *guesser* runs out of time instead, they forfeit that guess: they do not
+move, and play passes to the next player.
+
 ---
 
 ## Playing with AI

@@ -114,6 +114,14 @@ describe("applyAction — turn enforcement", () => {
     expect(r.message).toMatch(/already over/i);
   });
 
+  it("rejects a resign from a player who is not in this game", () => {
+    // resign is handled before the actorForPhase guard, so it is the one
+    // action with no identity check of its own.
+    const r = burgerDashApplyAction(game(2), "not-in-this-game", "resign", {});
+    expect(r.success).toBe(false);
+    expect(r.gameOver).not.toBe(true);
+  });
+
   it("lets any player resign at any time", () => {
     const r = burgerDashApplyAction(game(2), "p1", "resign", {});
     expect(r.success).toBe(true);

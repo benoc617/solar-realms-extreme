@@ -65,12 +65,15 @@ registerGame("burgerdash", {
       /**
        * Engine auto-skip on turn timeout.
        *
-       * A turn here can be blocked on the *hider*, who is not the turn's owner.
-       * Forfeiting them would be wrong — they are not the one racing. Instead
-       * the server commits a hand at random and play continues, which keeps the
-       * original mechanic intact without letting one idle player stall the game.
+       * This MUST leave the game with a different actor. The engine calls this
+       * and then re-resolves the current player from game state; because
+       * `getActivePlayers` below returns a single player, the engine's own
+       * `nextPlayer` fallback cannot advance anything on its own. If the game
+       * state does not move, the session hangs on the absent player with its
+       * clock reset on every poll.
        *
-       * A timed-out guesser is skipped by advancing the turn.
+       * `skipStalledTurn` resolves every stalled phase — see its doc comment
+       * for how each one is settled.
        */
       async processEndTurn(playerId: string) {
         const { getDb } = await import("@dge/engine/db-context");
@@ -80,12 +83,8 @@ registerGame("burgerdash", {
         });
         if (!player?.gameSessionId) return;
 
-        const {
-          loadBurgerDashState,
-          saveBurgerDashState,
-          burgerDashApplyAction,
-          actorForPhase,
-        } = await import("@dge/burgerdash");
+        const { loadBurgerDashState, saveBurgerDashState, skipStalledTurn } =
+          await import("@dge/burgerdash");
 
         let state;
         try {
@@ -95,23 +94,9 @@ registerGame("burgerdash", {
         }
         if (state.status !== "playing") return;
 
-        const actor = actorForPhase(state);
-        if (!actor || actor.id !== playerId) return;
-
-        // Auto-commit for a stalled hider rather than penalising them.
-        if (state.phase === "hiding") {
-          const hand = Math.random() < 0.5 ? "left" : "right";
-          const result = burgerDashApplyAction(state, playerId, "hide_hand", {
-            hand,
-            byTimeout: true,
-          });
-          if (result.success && result.state) {
-            await saveBurgerDashState(player.gameSessionId, result.state);
-          }
-          return;
-        }
-
-        // Any other stalled phase: let the engine advance past this player.
+        const next = skipStalledTurn(state, playerId);
+        if (next === state) return; // not this player's move — nothing to skip
+        await saveBurgerDashState(player.gameSessionId, next);
       },
 
       /**

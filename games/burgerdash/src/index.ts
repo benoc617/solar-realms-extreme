@@ -29,6 +29,7 @@ export {
   guessHand,
   resolveSpace,
   continueEffect,
+  skipStalledTurn,
   resign,
   activePlayer,
   playerById,

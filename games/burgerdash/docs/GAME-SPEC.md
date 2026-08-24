@@ -80,15 +80,29 @@ The HTTP adapter's `buildStatus` builds its payload from
 `projectBurgerDashState(raw, playerId)`, never from raw state. The broadcast
 message for `hide_hand` also deliberately does not name the hand.
 
-### Stalled hiders
+### Turn timeouts
 
-Because a turn can block on a player who is not racing, an unresponsive hider
-would otherwise stall the game for everyone. On turn timeout the registration's
-`processEndTurn` hook **commits a random hand** rather than forfeiting the
-hider — they are not the one whose turn it is, so a forfeit would be wrong.
-`state.hiddenByTimeout` records this and the reveal banner explains it.
+Because a turn can block on a player who is not racing, an unresponsive player
+would otherwise stall the game for everyone.
 
-A timed-out player in any other phase is skipped normally.
+`processEndTurn` delegates to the pure `skipStalledTurn`, which resolves **every**
+stalled phase the way that turn would have ended anyway:
+
+| Phase | Resolution |
+|---|---|
+| `hiding` | A hand is committed at random. The hider is **not** penalised — they are not the one racing, so a forfeit would be wrong. `hiddenByTimeout` records it and the reveal banner explains it. |
+| `chooseHider` | A hider is picked for the active player; they still owe a guess. |
+| `guessing` | The guess is forfeited: no movement, play passes on, and the committed hand is cleared. |
+| `reveal` | The guess was already made, so the move it earned is honoured. |
+| `spaceEffect` / `skippedTurn` | The banner is acknowledged on their behalf. |
+
+> **`skipStalledTurn` must always change the actor.** The engine calls it and
+> then re-resolves the current player from game state. Because
+> `getActivePlayers` returns a *single* player, the engine's own `nextPlayer`
+> fallback computes `(0 + 1) % 1 === 0` and cannot advance anything by itself.
+> If the game state does not move, `getCurrentTurn` rewrites `turnStartedAt` to
+> now and the session hangs on the absent player with its clock reset on every
+> poll. A unit test asserts the actor changes in every stalled phase.
 
 ---
 
@@ -174,7 +188,7 @@ interface BdPlayer {
 | `hide_hand` | `{ hand, byTimeout? }` | hider | Commits the hidden hand. Message never names it. |
 | `guess_hand` | `{ hand }` | active player | Locks the guess; sets `moveAmount` and reveals. |
 | `continue` | — | active player | Acknowledges a `reveal` / `spaceEffect` / `skippedTurn` banner and advances. |
-| `resign` | — | any player | Ends the game. In a 2-player game the other player wins; with 3-4 there is no winner. |
+| `resign` | — | any player **in this game** | Ends the game. In a 2-player game the other player wins; with 3-4 there is no winner. Rejected for an id that is not in `state.players` — this is the one action handled before the `actorForPhase` guard, so it validates membership itself. |
 
 > **The `choose_hider` param is `hiderId`, not `playerId`.** The action route
 > spreads action params into the same object as the acting player's id, so a
@@ -206,6 +220,11 @@ therefore calls `kickoffAiIfNeeded` at the end of `onSessionCreated` and
 
 `runAiSequence` loops while `actorForPhase(state).isAI`, so it correctly acts
 for an AI that is hiding during a human's turn.
+
+It is **serialized per session** by an in-process `aiSequenceInFlight` map: the
+opening kickoff and the orchestrator's post-action fire-and-forget can both
+start it at once, and the loop is an unlocked load-modify-save, so overlapping
+runs would read the same state and clobber each other's move.
 
 ---
 

@@ -20,6 +20,7 @@ import {
   hideHand,
   resign,
   resolveSpace,
+  skipStalledTurn,
 } from "@dge/burgerdash";
 import type { BurgerDashState } from "@dge/burgerdash";
 
@@ -279,6 +280,94 @@ describe("winning", () => {
   });
 });
 
+describe("turn timeouts", () => {
+  // The engine calls skipStalledTurn (via processEndTurn) and then re-resolves
+  // the actor from game state. If these did not change the actor, the engine
+  // would reset the clock on the same player forever and the game would hang.
+
+  it("commits a hand for a stalled hider and moves to the guesser", () => {
+    const s = game(2); // phase "hiding", actor p2
+    const next = skipStalledTurn(s, "p2", () => "left");
+    expect(next.phase).toBe("guessing");
+    expect(next.hiddenHand).toBe("left");
+    expect(next.hiddenByTimeout).toBe(true);
+    expect(actorForPhase(next)!.id).toBe("p1"); // actor changed
+  });
+
+  it("does not punish the stalled hider — they are not the one racing", () => {
+    const next = skipStalledTurn(game(2), "p2", () => "left");
+    expect(next.players.find((p) => p.id === "p2")!.skipNextTurn).toBe(false);
+    expect(next.status).toBe("playing");
+  });
+
+  it("picks a hider for a stalled active player", () => {
+    const s = game(3); // phase "chooseHider", actor p1
+    const next = skipStalledTurn(s, "p1", undefined, (c) => c[0]);
+    expect(next.phase).toBe("hiding");
+    expect(next.hiderId).toBe("p2");
+    expect(actorForPhase(next)!.id).toBe("p2"); // actor changed
+  });
+
+  it("forfeits a stalled guess and passes play on without moving", () => {
+    const s = hideHand(game(2), "left"); // phase "guessing", actor p1
+    const next = skipStalledTurn(s, "p1");
+    expect(next.players[0].position).toBe(1); // no free space
+    expect(next.activeIndex).toBe(1);
+    expect(actorForPhase(next)!.id).toBe("p1"); // p1 now hides for p2
+    expect(next.phase).toBe("hiding");
+  });
+
+  it("clears the committed hand when a guess is forfeited", () => {
+    const s = hideHand(game(2), "left");
+    const next = skipStalledTurn(s, "p1");
+    expect(next.hiddenHand).toBeNull();
+    expect(next.guessedHand).toBeNull();
+  });
+
+  it("honours a move already earned when the reveal is not acknowledged", () => {
+    const s = guessHand(hideHand(game(2), "left"), "left"); // correct, moves 2
+    const next = skipStalledTurn(s, "p1");
+    expect(next.players[0].position).toBe(3);
+  });
+
+  it("acknowledges a stalled skipped-turn banner", () => {
+    let s = at(game(2), 4);
+    s = takeTurn(s, false); // p1 lands on 5 (lose a turn)
+    s = takeTurn(s, false); // p2 plays
+    expect(s.phase).toBe("skippedTurn");
+    const next = skipStalledTurn(s, "p1");
+    expect(next.phase).not.toBe("skippedTurn");
+    expect(next.activeIndex).toBe(1);
+  });
+
+  it("changes the actor in every stalled phase", () => {
+    // The invariant the engine depends on, asserted directly.
+    const cases: BurgerDashState[] = [
+      game(2),                                   // hiding
+      game(3),                                   // chooseHider
+      hideHand(game(2), "left"),                 // guessing
+      guessHand(hideHand(game(2), "left"), "left"), // reveal
+    ];
+    for (const s of cases) {
+      const before = actorForPhase(s)!;
+      const next = skipStalledTurn(s, before.id, () => "left", (c) => c[0]);
+      const after = actorForPhase(next);
+      const moved = after?.id !== before.id || next.phase !== s.phase;
+      expect(moved).toBe(true);
+    }
+  });
+
+  it("ignores a player who is not the current actor", () => {
+    const s = game(2); // actor is p2
+    expect(skipStalledTurn(s, "p1")).toBe(s);
+  });
+
+  it("ignores a finished game", () => {
+    const over: BurgerDashState = { ...game(2), status: "complete" };
+    expect(skipStalledTurn(over, "p2")).toBe(over);
+  });
+});
+
 describe("resigning", () => {
   it("hands a 2-player game to the other player", () => {
     const s = resign(game(2), "p1");
@@ -290,5 +379,12 @@ describe("resigning", () => {
     const s = resign(game(3), "p1");
     expect(s.status).toBe("resigned");
     expect(s.winnerId).toBeNull();
+  });
+
+  it("ignores a player who is not in this game", () => {
+    // Without a membership check this ended a live 2-player game as a draw.
+    const s = game(2);
+    expect(resign(s, "someone-from-another-session")).toBe(s);
+    expect(s.status).toBe("playing");
   });
 });

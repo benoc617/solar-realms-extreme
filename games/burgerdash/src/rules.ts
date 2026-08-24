@@ -309,11 +309,73 @@ export function continueEffect(state: BurgerDashState): BurgerDashState {
   return land({ ...state, effect: null }, effect.to ?? effect.from, false);
 }
 
+/**
+ * Advance a turn that has timed out on `playerId`.
+ *
+ * The engine's auto-skip calls this via `processEndTurn` and then re-resolves
+ * the current player from game state, so this MUST leave the game with a
+ * different actor — otherwise the engine simply resets the clock on the same
+ * player and the session hangs forever.
+ *
+ * Each phase is resolved the way that turn would have ended anyway:
+ *
+ *   - `hiding`      the hider is not the one racing, so they are not punished:
+ *                   a hand is committed for them and play moves to the guesser.
+ *   - `chooseHider` a hider is picked for the active player, then their turn
+ *                   proceeds. They still owe a guess.
+ *   - `guessing`    the guess is forfeited — the active player moves 0 spaces
+ *                   and the turn passes on.
+ *   - banner phases the banner is acknowledged on their behalf.
+ *
+ * Returns the state unchanged when `playerId` is not the current actor.
+ */
+export function skipStalledTurn(
+  state: BurgerDashState,
+  playerId: string,
+  pickHand: () => Hand = () => (Math.random() < 0.5 ? "left" : "right"),
+  pickHider: (candidates: BdPlayer[]) => BdPlayer = (c) =>
+    c[Math.floor(Math.random() * c.length) % c.length],
+): BurgerDashState {
+  if (state.status !== "playing") return state;
+  const actor = actorForPhase(state);
+  if (!actor || actor.id !== playerId) return state;
+
+  switch (state.phase) {
+    case "hiding":
+      return hideHand(state, pickHand(), true);
+
+    case "chooseHider": {
+      const candidates = state.players.filter((p) => p.id !== actor.id);
+      if (candidates.length === 0) return state;
+      return chooseHider(state, pickHider(candidates).id);
+    }
+
+    case "guessing":
+      // No guess means no move. Pass play on rather than granting a free
+      // space, and clear the committed hand so nothing leaks into next turn.
+      return nextTurn({ ...state, hiddenHand: null, guessedHand: null, moveAmount: 0 });
+
+    case "reveal":
+      // The guess was already made; honour the move they earned.
+      return resolveSpace(state);
+
+    case "spaceEffect":
+    case "skippedTurn":
+      return continueEffect(state);
+
+    default:
+      return state;
+  }
+}
+
 export function resign(
   state: BurgerDashState,
   playerId: string,
 ): BurgerDashState {
   if (state.status !== "playing") return state;
+  // Only a player actually in this game can resign it. Without this an id from
+  // another session would end the game as a draw.
+  if (!state.players.some((p) => p.id === playerId)) return state;
   const remaining = state.players.filter((p) => p.id !== playerId);
   // Two-player game: the other player wins outright. With 3-4 players there is
   // no single winner to crown, so the session simply ends.

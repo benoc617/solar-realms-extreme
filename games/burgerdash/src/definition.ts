@@ -100,6 +100,11 @@ export function burgerDashApplyAction(
 
   if (action === "resign") {
     const next = resign(state, playerId);
+    // resign() no-ops for an id that is not in this game. Reporting success
+    // there would claim a game ended when it did not.
+    if (next === state) {
+      return { success: false, message: "You are not in this game." };
+    }
     const who = playerById(state, playerId);
     return {
       success: true,
@@ -295,6 +300,13 @@ export function getBurgerDashAIMove(
 // Full-track GameDefinition
 // ---------------------------------------------------------------------------
 
+/**
+ * In-flight AI sequences, keyed by session id. Both callers of
+ * `runAiSequence` run in the same Next.js process, so an in-process guard is
+ * enough to stop overlapping load-modify-save loops from losing moves.
+ */
+const aiSequenceInFlight = new Map<string, Promise<void>>();
+
 async function sessionIdFor(playerId: string): Promise<string | null> {
   const player = await getDb().player.findUnique({
     where: { id: playerId },
@@ -339,26 +351,42 @@ export const burgerDashGameDefinition: GameDefinition<BurgerDashState> = {
    * Drive every consecutive AI action. Unlike chess this can act for a player
    * who is *not* the turn owner: an AI asked to hide the crayon acts during the
    * human's turn, which is exactly the two-step crayon flow.
+   *
+   * Serialized per session by `aiSequenceInFlight`. Two callers can legitimately
+   * start this at once — the adapter's opening kickoff and the orchestrator's
+   * post-action fire-and-forget — and because the loop is an unlocked
+   * load-modify-save, overlapping runs would read the same state and clobber
+   * each other's move.
    */
   async runAiSequence(sessionId: string): Promise<void> {
-    const { advanceTurn } = await import("@dge/engine/turn-order");
+    const existing = aiSequenceInFlight.get(sessionId);
+    if (existing) return existing;
 
-    for (let guard = 0; guard < 400; guard += 1) {
-      const state = await loadBurgerDashState(sessionId);
-      if (state.status !== "playing") break;
+    const run = (async () => {
+      const { advanceTurn } = await import("@dge/engine/turn-order");
 
-      const actor = actorForPhase(state);
-      if (!actor || !actor.isAI) break;
+      for (let guard = 0; guard < 400; guard += 1) {
+        const state = await loadBurgerDashState(sessionId);
+        if (state.status !== "playing") break;
 
-      const move = getBurgerDashAIMove(state, actor.id);
-      if (!move) break;
+        const actor = actorForPhase(state);
+        if (!actor || !actor.isAI) break;
 
-      const result = burgerDashApplyAction(state, actor.id, move.action, move.params);
-      if (!result.success || !result.state) break;
+        const move = getBurgerDashAIMove(state, actor.id);
+        if (!move) break;
 
-      await saveBurgerDashState(sessionId, result.state);
-      await advanceTurn(sessionId);
-    }
+        const result = burgerDashApplyAction(state, actor.id, move.action, move.params);
+        if (!result.success || !result.state) break;
+
+        await saveBurgerDashState(sessionId, result.state);
+        await advanceTurn(sessionId);
+      }
+    })().finally(() => {
+      aiSequenceInFlight.delete(sessionId);
+    });
+
+    aiSequenceInFlight.set(sessionId, run);
+    return run;
   },
 };
 
