@@ -5,6 +5,8 @@ A multiplayer turn-based game engine built with Next.js, Prisma, MySQL, and Redi
 **Included games:**
 - [Solar Realms Extreme (SRX)](games/srx/README.md) — a galactic empire management game
 - [Chess](games/chess/README.md) — standard chess against an MCTS AI opponent
+- [Gin Rummy](games/ginrummy/docs/GAME-SPEC.md) — classic 2-player card game (MCTS + determinization)
+- [Burger Dash](games/burgerdash/docs/GAME-SPEC.md) — 2-4 player race; hide a crayon, guess the hand, reach the burger
 
 ## Quick Start
 
@@ -75,6 +77,9 @@ Open [http://localhost:3000](http://localhost:3000). Operators: [http://localhos
 | [games/srx/docs/HOWTOPLAY.md](games/srx/docs/HOWTOPLAY.md) | SRX player-facing game guide |
 | [games/srx/docs/GAME-SPEC.md](games/srx/docs/GAME-SPEC.md) | SRX complete technical specification |
 | [games/chess/README.md](games/chess/README.md) | Chess game overview |
+| [games/ginrummy/docs/GAME-SPEC.md](games/ginrummy/docs/GAME-SPEC.md) | Gin Rummy technical specification |
+| [games/burgerdash/docs/HOWTOPLAY.md](games/burgerdash/docs/HOWTOPLAY.md) | Burger Dash player-facing guide |
+| [games/burgerdash/docs/GAME-SPEC.md](games/burgerdash/docs/GAME-SPEC.md) | Burger Dash technical specification — board, crayon hide/guess turn model, hidden-info handling |
 | [games/chess/docs/GAME-SPEC.md](games/chess/docs/GAME-SPEC.md) | Chess technical specification |
 | [CLAUDE.md](CLAUDE.md) | AI assistant guidance — commands, architecture, container-only npm |
 | [AGENTS.md](AGENTS.md) | Cursor / editor agent rules |
@@ -94,6 +99,8 @@ packages/
 games/
   srx/       @dge/srx     — Solar Realms Extreme game definition
   chess/     @dge/chess   — Chess game definition (MCTS AI, no Gemini)
+  ginrummy/  @dge/ginrummy — Gin Rummy game definition (MCTS + determinization)
+  burgerdash/ @dge/burgerdash — Burger Dash (2-4p race, hidden-hand crayon guess)
 src/
   app/                    — Next.js App Router (API routes + pages)
   components/             — Game-specific React components

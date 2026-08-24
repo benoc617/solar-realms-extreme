@@ -14,3 +14,4 @@
 import "@/lib/srx-registration";
 import "@/lib/chess-registration";
 import "@/lib/ginrummy-registration";
+import "@/lib/burgerdash-registration";

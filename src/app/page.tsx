@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/client-fetch";
 import { SrxGameScreen } from "@/components/SrxGameScreen";
 import { ChessGameScreen } from "@/components/ChessGameScreen";
 import { GinRummyGameScreen } from "@/components/GinRummyGameScreen";
+import { BurgerDashGameScreen } from "@/components/BurgerDashGameScreen";
 // Re-export GameState so existing imports from "@/app/page" keep working.
 export type { GameState } from "@/lib/srx-game-types";
 
@@ -184,6 +185,57 @@ const CLIENT_GAME_REGISTRY: ClientGameMetadata[] = [
       },
     ],
   },
+  {
+    game: "burgerdash",
+    displayName: "Burger Dash",
+    shortName: "Dash",
+    description:
+      "Hide a crayon, guess the hand, race 31 spaces to the burger. 2-4 players, humans or AI.",
+    supportsJoin: true,
+    createOptions: [
+      {
+        key: "opponentMode",
+        label: "Opponents",
+        description: "Play AI opponents right away, or invite people to join",
+        type: "select",
+        default: "ai",
+        options: [
+          { value: "ai", label: "AI opponents" },
+          { value: "human", label: "Humans (invite)" },
+        ],
+      },
+      {
+        key: "playerCount",
+        label: "Players",
+        description: "Seats at the table, including you",
+        type: "number",
+        default: 2,
+        min: 2,
+        max: 4,
+      },
+      {
+        key: "aiDifficulty",
+        label: "AI Speed",
+        description:
+          "Guessing a hidden hand is a coin flip, so this only changes how long AI players pause",
+        type: "select",
+        default: "medium",
+        options: [
+          { value: "easy",   label: "Dawdling" },
+          { value: "medium", label: "Snappy"   },
+          { value: "hard",   label: "Instant"  },
+        ],
+      },
+      {
+        key: "turnTimeoutSecs",
+        label: "Turn Timer",
+        description: "Time limit per turn; a stalled hider is auto-hidden rather than forfeited",
+        type: "select",
+        default: String(43200),
+        options: TURN_TIMER_OPTIONS.map((o) => ({ value: String(o.secs), label: o.label })),
+      },
+    ],
+  },
 ];
 
 function getGameMeta(game: string): ClientGameMetadata {
@@ -249,6 +301,7 @@ const GAME_SCREEN_REGISTRY: Record<string, React.ComponentType<GameScreenProps>>
   srx: SrxGameScreen,
   chess: ChessGameScreen,
   ginrummy: GinRummyGameScreen,
+  burgerdash: BurgerDashGameScreen,
 };
 
 // ---------------------------------------------------------------------------

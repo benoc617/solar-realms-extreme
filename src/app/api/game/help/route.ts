@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { HELP_REGISTRY as SRX_HELP_REGISTRY } from "@dge/srx/help-content";
 import { HELP_REGISTRY as CHESS_HELP_REGISTRY } from "@dge/chess/help-content";
 import { HELP_REGISTRY as GINRUMMY_HELP_REGISTRY } from "@dge/ginrummy/help-content";
+import { HELP_REGISTRY as BURGERDASH_HELP_REGISTRY } from "@dge/burgerdash/help-content";
 
 /**
  * GET /api/game/help?game=srx
@@ -15,6 +16,7 @@ const COMBINED_REGISTRY: Record<string, { title: string; content: string }> = {
   ...SRX_HELP_REGISTRY,
   ...CHESS_HELP_REGISTRY,
   ...GINRUMMY_HELP_REGISTRY,
+  ...BURGERDASH_HELP_REGISTRY,
 };
 
 export async function GET(req: NextRequest) {

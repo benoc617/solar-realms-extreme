@@ -28,6 +28,7 @@ packages/shell/     @dge/shell     — React UI shell (hooks, layout, types)
 packages/shared/    @dge/shared    — shared types, RNG interface
 games/srx/          @dge/srx       — Solar Realms Extreme game definition + components
 games/chess/        @dge/chess     — Chess game definition (MCTS-only AI, no Gemini)
+games/burgerdash/   @dge/burgerdash — Burger Dash game definition (2-4p race, hidden-hand guess)
 games/ginrummy/     @dge/ginrummy  — Gin Rummy game definition (MCTS + determinization)
 src/                               — Next.js application (routes, pages, components)
   app/                             — Next.js App Router pages and API routes
@@ -235,6 +236,7 @@ The `behavior` field is opaque to the engine — each game defines and casts its
 
 Currently implementing games:
 - **Chess** — `CHESS_DIFFICULTY_PROFILE` (Beginner / Club Player / Expert); no behavioral flags, MCTS budget only.
+- **Burger Dash** — `BURGERDASH_DIFFICULTY_PROFILE` (Dawdling / Snappy / Instant). Pacing only: guessing a hidden hand is a coin flip, so no tier plays better.
 - **Gin Rummy** — `GINRUMMY_DIFFICULTY_PROFILE` (Casual / Competitive / Shark); behavioral flags `trackDiscards` and `inferOpponentMelds` extend the MCTS search with discard-pile observation tracking.
 
 ---
@@ -265,6 +267,7 @@ All games register at application startup via a **bootstrap module**:
 import "@/lib/srx-registration";
 import "@/lib/chess-registration";
 import "@/lib/ginrummy-registration";
+import "@/lib/burgerdash-registration";
 // add new games here
 ```
 
@@ -625,6 +628,51 @@ Gin Rummy-specific tests:
 | Game lifecycle: deal, draw, knock, gin, undercut, scoring, resign | Unit | `tests/unit/ginrummy-rules.test.ts` |
 | MCTS search functions, eval, determinization, AI moves | Unit | `tests/unit/ginrummy-mcts.test.ts` |
 | Full game flow (register, status, draw, discard, AI, resign, human vs human) | E2E | `tests/e2e/ginrummy.test.ts` |
+
+Burger Dash-specific tests:
+
+| Area | Test type | File(s) |
+|------|-----------|---------|
+| Board data, movement, jumps, lose-a-turn, overshoot win, the two-step crayon turn | Unit | `tests/unit/burgerdash-rules.test.ts` |
+| `projectState` hidden-hand secrecy, action dispatch, turn enforcement, AI | Unit | `tests/unit/burgerdash-definition.test.ts` |
+| Full game flow, AI hiding before the human's first move, hidden-hand non-leakage over HTTP | E2E | `tests/e2e/burgerdash/burgerdash.test.ts` |
+
+---
+
+## 17b. Turns that block on a non-active player
+
+Most games assume the player whose turn it is, is the player who acts. Burger
+Dash breaks that assumption: a turn needs the **hider** to commit a hidden
+choice before the **active player** can guess.
+
+The engine supports this without any game-specific knowledge, via two existing
+mechanisms:
+
+1. **`turnOrder.getActivePlayers` returns whoever must act next**, not the turn
+   owner. Returning a single player makes `advanceTurn` park
+   `currentTurnPlayerId` on them. Burger Dash returns `actorForPhase(state)`,
+   which points at the hider during the `hiding` phase and the active player
+   otherwise. (Gin Rummy uses the same hook to hold the engine on one player
+   across a multi-step turn.)
+
+2. **`projectState` hides the committed choice** from every client — including
+   the committer's own — until the game reveals it.
+
+Two consequences are worth knowing if you build another game this way:
+
+- **`isYourTurn` is the wrong question for the UI.** Ask "am I the one being
+  waited on, and what for?" Burger Dash's status payload exposes `waitingOn`
+  alongside `activePlayerId` for exactly this reason.
+- **`runAiSequence` may need an explicit kickoff.** The orchestrator only fires
+  it *after* a human action, and stale-turn recovery waits
+  `SEQUENTIAL_AI_STALE_MS` (90s). If a game can open with an AI due to act
+  before any human has moved, the adapter must kick it off in
+  `onSessionCreated` / `onPlayerJoined`.
+
+Also note: **action params are spread into the same object as the acting
+player's id** by `POST /api/game/action`. Never name an action param
+`playerId` — it silently overwrites the caller's identity and the turn guard
+will reject the request.
 
 ---
 
