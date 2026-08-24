@@ -1,0 +1,17 @@
+{
+  "name": "@dge/burgerdash",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./help-content": "./src/help-content.ts",
+    "./layout": "./src/layout.ts",
+    "./art/characters": "./src/art/characters.tsx"
+  },
+  "dependencies": {
+    "@dge/engine": "*",
+    "@dge/shared": "*"
+  }
+}

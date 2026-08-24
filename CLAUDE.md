@@ -46,6 +46,8 @@ If a command fails on the host, **do not** treat that as the project failing unt
 - **`games/srx/docs/HOWTOPLAY.md`** — SRX player-facing game guide. Update if you change SRX game mechanics, actions, costs, strategies, or UI controls.
 - **`games/srx/docs/GAME-SPEC.md`** — SRX complete technical specification. Update if you change ANY SRX formula, constant, data model field, action type, tech tree entry, combat mechanic, or turn tick step. This is the authoritative SRX spec — it must always match the code.
 - **`games/chess/docs/GAME-SPEC.md`** — Chess technical specification. Update if you change chess rules, MCTS config, state persistence, or action handling.
+- **`games/burgerdash/docs/HOWTOPLAY.md`** — Burger Dash player-facing guide. Update if you change game mechanics, actions, or UI controls.
+- **`games/burgerdash/docs/GAME-SPEC.md`** — Burger Dash technical specification. Update if you change the board, movement rules, the crayon hide/guess phase machine, `projectState` secrecy, AI behavior, or session options.
 - **`games/ginrummy/docs/GAME-SPEC.md`** — Gin Rummy technical specification. Update if you change Gin Rummy rules, meld detection, MCTS/determinization config, state schema, action types, or scoring.
 - **`CLAUDE.md`** — This file. Update if you change commands, architecture, key file roles, or add new conventions.
 - **`AGENTS.md`** — Cursor / editor agent rules. Update if you change container-only tooling policy, Next.js agent notices, or repo-wide agent constraints.
@@ -216,15 +218,16 @@ This repo uses an **npm workspace monorepo** where game-agnostic infrastructure 
 | `games/srx/` | `@dge/srx` | SRX game definition: `srxGameDefinition` implements `GameDefinition<SrxWorldState>` |
 | `games/chess/` | `@dge/chess` | Chess game definition: `chessGameDefinition` implements `GameDefinition<ChessState>` (MCTS-only AI, no Gemini) |
 | `games/ginrummy/` | `@dge/ginrummy` | Gin Rummy game definition: `ginRummyGameDefinition` implements `GameDefinition<GinRummyState>` (MCTS + information set sampling) |
+| `games/burgerdash/` | `@dge/burgerdash` | Burger Dash game definition: `burgerDashGameDefinition` implements `GameDefinition<BurgerDashState>` (2-4 player race; hidden-hand crayon guess, random AI) |
 
 ### Separation rules (must not violate)
 
 - **Engine never imports game code** — no references to `@/lib/game-engine`, `sim-state`, `door-game-turns`, etc.
 - **Shell never imports game components** — only `GameStateBase` and `GameUIConfig<TState>` are game-aware
 - **Game-specific hooks injected via interfaces** — `TurnOrderHooks` / `DoorGameHooks` let the engine call game persistence without knowing SRX
-- **Registration side-effects** — `src/lib/srx-registration.ts`, `chess-registration.ts`, `ginrummy-registration.ts` wire games into the engine registry; imported via `src/lib/game-bootstrap.ts`
+- **Registration side-effects** — `src/lib/srx-registration.ts`, `chess-registration.ts`, `ginrummy-registration.ts`, `burgerdash-registration.ts` wire games into the engine registry; imported via `src/lib/game-bootstrap.ts`
 - **`src/lib/game-bootstrap.ts`** — single module that imports all game registration files; API routes import this once
-- Game HTTP adapters (`srx-http-adapter.ts`, `chess-http-adapter.ts`, `ginrummy-http-adapter.ts`) implement `GameHttpAdapter` — `buildStatus`, `getPlayerCreateData`, `onSessionCreated`, `onPlayerJoined`, `isGameOver`, `computeHubTurnState`
+- Game HTTP adapters (`srx-http-adapter.ts`, `chess-http-adapter.ts`, `ginrummy-http-adapter.ts`, `burgerdash-http-adapter.ts`) implement `GameHttpAdapter` — `buildStatus`, `getPlayerCreateData`, `onSessionCreated`, `onPlayerJoined`, `isGameOver`, `computeHubTurnState`
 
 For complete annotated module descriptions see `ENGINE-SPEC.md` §Key lib files.
 
@@ -244,6 +247,9 @@ Each game provides `games/{name}/src/help-content.ts` exporting a `HELP_REGISTRY
 | Chess help (in-game) | `games/chess/src/help-content.ts` | In-game reference for chess |
 | Gin Rummy game spec | `games/ginrummy/docs/GAME-SPEC.md` | Gin Rummy rules, MCTS + determinization, state schema |
 | Gin Rummy help (in-game) | `games/ginrummy/src/help-content.ts` | In-game reference for Gin Rummy |
+| Burger Dash game spec | `games/burgerdash/docs/GAME-SPEC.md` | Board, crayon hide/guess turn model, hidden-info handling |
+| Burger Dash how-to-play | `games/burgerdash/docs/HOWTOPLAY.md` | Player-facing Burger Dash guide |
+| Burger Dash help (in-game) | `games/burgerdash/src/help-content.ts` | In-game reference for Burger Dash |
 | Agent instructions | `CLAUDE.md` | This file |
 | Editor agent rules | `AGENTS.md` | Container-only policy, Next.js agent notices |
 
@@ -275,6 +281,7 @@ Chess (`games/chess/`) and Gin Rummy (`games/ginrummy/`) are reference implement
 - **`tests/unit/turn-order-lobby.test.ts`** — `sessionCannotHaveActiveTurn` (sequential)
 - **`tests/unit/chess-rules.test.ts`** / **`chess-mcts.test.ts`** — chess rules + MCTS search
 - **`tests/unit/ginrummy-melds.test.ts`** / **`ginrummy-rules.test.ts`** / **`ginrummy-mcts.test.ts`** — Gin Rummy logic
+- **`tests/unit/burgerdash-rules.test.ts`** / **`burgerdash-definition.test.ts`** — Burger Dash board/movement rules, the two-step crayon turn, and `projectState` hidden-hand secrecy
 
 E2E tests (need MySQL + app running):
 
@@ -293,10 +300,11 @@ E2E tests (need MySQL + app running):
 | `srx/door-game.test.ts` | Door-game register/join, tick+action auto-close, concurrent lock (200+409), round rollover |
 | `chess/chess.test.ts` | Chess game registration, status with board, legal moves, AI response (MCTS), resign, game-over 410 |
 | `ginrummy/ginrummy.test.ts` | Gin Rummy registration (vs AI + vs human), status, draw/discard, AI polling, resign |
+| `burgerdash/burgerdash.test.ts` | Burger Dash registration, board status, AI hiding before the human's first move, hidden-hand non-leakage, hider/guesser role swap, resign |
 
 ## Architecture
 
-The platform is a multi-game engine (DGE) with Solar Realms Extreme, Chess, and Gin Rummy as game implementations. See `ENGINE-SPEC.md` for the complete engine specification and each game's `docs/GAME-SPEC.md` for game-specific mechanics.
+The platform is a multi-game engine (DGE) with Solar Realms Extreme, Chess, Gin Rummy, and Burger Dash as game implementations. See `ENGINE-SPEC.md` for the complete engine specification and each game's `docs/GAME-SPEC.md` for game-specific mechanics.
 
 ### Data flow for a human turn (SRX / sequential mode)
 1. When `isYourTurn` becomes true, UI calls `POST /api/game/tick` — `runAndPersistTick()` runs the turn tick, persists, sets `Empire.tickProcessed`, returns `turnReport`. Shows **TurnSummaryModal**.
@@ -313,6 +321,7 @@ For door-game (simultaneous) turn mechanics, turn order enforcement, and AI turn
 - **`src/components/SrxGameScreen.tsx`** — full SRX in-game UI (header, panels, polling, modals).
 - **`src/components/ChessGameScreen.tsx`** — full chess in-game UI (interactive board, move selection, promotion, resign, captured pieces, AI polling).
 - **`src/components/GinRummyGameScreen.tsx`** — full Gin Rummy in-game UI (card table, hand rendering, draw/discard/knock/gin/layoff actions, match scoring, hand sort/drag, help modal).
+- **`src/components/BurgerDashGameScreen.tsx`** — full Burger Dash in-game UI (scaled SVG board on a fixed 1600x772 design canvas, hand hide/guess buttons, reveal, crayon trail, help modal).
 - **Screens flow**: Login → Game Select → Command Center/Hub → Create Session or Join → `GameScreen`. Legacy login (no `UserAccount`) goes straight into the game.
 - All API responses use `game` field (not `gameType`). DB column is `GameSession.gameType`; routes map it at the boundary.
 - Styling: monochrome terminal/BBS aesthetic (black background, green-400 text, yellow-400 accents).
